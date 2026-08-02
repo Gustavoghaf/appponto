@@ -1,0 +1,20 @@
+{
+  "name": "ponto-app",
+  "version": "1.0.0",
+  "description": "Sistema simples de registro de ponto com foto e PIN",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dayjs": "^1.11.10",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "googleapis": "^173.0.0",
+    "pdfkit": "^0.19.1",
+    "pg": "^8.22.0",
+    "qrcode": "^1.5.3"
+  }
+}

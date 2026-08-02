@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Registrar Ponto</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  body { display: flex; align-items: center; min-height: 100vh; }
+  .wrap { width: 100%; max-width: 420px; margin: 0 auto; padding: 16px; }
+  #video, #canvas { width: 100%; border-radius: 12px; background: #000; }
+  #canvas { display: none; }
+  .relogio { font-size: 40px; font-weight: 700; text-align: center; margin: 8px 0 2px; }
+  .data { text-align: center; color: var(--cinza-texto); margin-bottom: 16px; }
+  .acao-label { text-align: center; margin-bottom: 16px; }
+  .pin-input { text-align: center; font-size: 24px; letter-spacing: 8px; }
+  .foto-preview { position: relative; }
+  .btn-refazer { position: absolute; top: 8px; right: 8px; padding: 6px 12px; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card" id="conteudo">
+    <p style="text-align:center;">Carregando...</p>
+  </div>
+</div>
+
+<script>
+const slug = window.location.pathname.split('/').pop();
+const conteudo = document.getElementById('conteudo');
+let stream = null;
+let fotoBase64 = null;
+
+function atualizarRelogio() {
+  const el = document.getElementById('relogio');
+  const dataEl = document.getElementById('data');
+  if (!el) return;
+  const agora = new Date();
+  el.textContent = agora.toLocaleTimeString('pt-BR');
+  dataEl.textContent = agora.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+}
+setInterval(atualizarRelogio, 1000);
+
+async function carregar() {
+  try {
+    const resp = await fetch(`/api/ponto/${slug}/status`);
+    if (!resp.ok) {
+      conteudo.innerHTML = `<div class="erro">Link inválido ou desativado. Fale com o administrador.</div>`;
+      return;
+    }
+    const dados = await resp.json();
+    renderizarTela(dados);
+    atualizarRelogio();
+  } catch (e) {
+    conteudo.innerHTML = `<div class="erro">Erro ao carregar. Verifique sua conexão.</div>`;
+  }
+}
+
+function renderizarTela(dados) {
+  if (dados.emFerias) {
+    conteudo.innerHTML = `
+      <h2 style="text-align:center;">Olá, ${dados.nome}</h2>
+      <div class="sucesso" style="text-align:center;">🌴 Você está de férias. Não é possível registrar ponto hoje.</div>
+    `;
+    return;
+  }
+
+  const acaoLabel = dados.proximaAcao === 'entrada' ? 'Registrar ENTRADA' : 'Registrar SAÍDA';
+  const corBadge = dados.proximaAcao === 'entrada' ? 'badge-entrada' : 'badge-saida';
+
+  conteudo.innerHTML = `
+    <h2 style="text-align:center; margin-bottom:4px;">Olá, ${dados.nome}</h2>
+    <div id="relogio" class="relogio">--:--:--</div>
+    <div id="data" class="data"></div>
+    <div class="acao-label"><span class="badge ${corBadge}">${acaoLabel}</span></div>
+
+    <div id="area-foto">
+      <video id="video" autoplay playsinline></video>
+      <canvas id="canvas"></canvas>
+      <button id="btn-capturar" class="btn-primario" style="width:100%; margin-top:10px;">📷 Tirar foto</button>
+    </div>
+
+    <div id="area-pin" style="display:none;">
+      <div class="mt">
+        <label>Digite seu PIN</label>
+        <input id="pin" class="pin-input" type="password" inputmode="numeric" maxlength="6" placeholder="••••">
+      </div>
+      <div id="msg"></div>
+      <button id="btn-confirmar" class="btn-sucesso" style="width:100%;">Confirmar ${dados.proximaAcao === 'entrada' ? 'Entrada' : 'Saída'}</button>
+      <button id="btn-cancelar" class="btn-secundario" style="width:100%; margin-top:8px;">Tirar foto novamente</button>
+    </div>
+
+    <div id="area-ok" style="display:none; text-align:center;">
+      <div class="sucesso" id="msg-ok"></div>
+    </div>
+
+    ${dados.ultimoRegistro ? `<p class="texto-fraco mt" style="text-align:center;">Último registro hoje: ${dados.ultimoRegistro.tipo === 'entrada' ? 'Entrada' : 'Saída'} às ${new Date(dados.ultimoRegistro.timestamp).toLocaleTimeString('pt-BR')}</p>` : ''}
+  `;
+
+  iniciarCamera();
+  document.getElementById('btn-capturar').onclick = capturarFoto;
+  document.getElementById('btn-cancelar').onclick = () => {
+    document.getElementById('area-pin').style.display = 'none';
+    document.getElementById('area-foto').style.display = 'block';
+    iniciarCamera();
+  };
+  document.getElementById('btn-confirmar').onclick = () => confirmarRegistro(dados.proximaAcao);
+}
+
+async function iniciarCamera() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+    document.getElementById('video').srcObject = stream;
+  } catch (e) {
+    document.getElementById('area-foto').innerHTML = `<div class="erro">Não foi possível acessar a câmera. Permita o acesso e recarregue a página.</div>`;
+  }
+}
+
+function pararCamera() {
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+    stream = null;
+  }
+}
+
+function capturarFoto() {
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  fotoBase64 = canvas.toDataURL('image/jpeg', 0.8);
+
+  pararCamera();
+  document.getElementById('area-foto').style.display = 'none';
+  document.getElementById('area-pin').style.display = 'block';
+  document.getElementById('pin').focus();
+}
+
+async function confirmarRegistro(acaoEsperada) {
+  const pin = document.getElementById('pin').value;
+  const msg = document.getElementById('msg');
+  const btn = document.getElementById('btn-confirmar');
+
+  if (!pin) {
+    msg.innerHTML = `<div class="erro">Digite seu PIN.</div>`;
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
+
+  try {
+    const resp = await fetch(`/api/ponto/${slug}/registrar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin, foto: fotoBase64 })
+    });
+    const dados = await resp.json();
+
+    if (!resp.ok) {
+      msg.innerHTML = `<div class="erro">${dados.erro || 'Erro ao registrar.'}</div>`;
+      btn.disabled = false;
+      btn.textContent = `Confirmar ${acaoEsperada === 'entrada' ? 'Entrada' : 'Saída'}`;
+      return;
+    }
+
+    document.getElementById('area-pin').style.display = 'none';
+    document.getElementById('area-ok').style.display = 'block';
+    const hora = new Date(dados.timestamp).toLocaleTimeString('pt-BR');
+    document.getElementById('msg-ok').textContent =
+      `✅ ${dados.tipo === 'entrada' ? 'Entrada' : 'Saída'} registrada às ${hora}.`;
+  } catch (e) {
+    msg.innerHTML = `<div class="erro">Erro de conexão. Tente novamente.</div>`;
+    btn.disabled = false;
+    btn.textContent = `Confirmar ${acaoEsperada === 'entrada' ? 'Entrada' : 'Saída'}`;
+  }
+}
+
+carregar();
+</script>
+</body>
+</html>

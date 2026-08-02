@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login Administrador</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  body { display: flex; align-items: center; min-height: 100vh; }
+  .wrap { width: 100%; max-width: 380px; margin: 0 auto; padding: 16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h2 style="text-align:center;">Painel do Administrador</h2>
+    <div id="msg"></div>
+    <label>E-mail</label>
+    <input id="email" type="email" placeholder="seu@email.com">
+    <label>Senha</label>
+    <input id="senha" type="password" placeholder="••••••••">
+    <button id="btn-entrar" class="btn-primario" style="width:100%;">Entrar</button>
+  </div>
+</div>
+
+<script>
+document.getElementById('btn-entrar').onclick = async () => {
+  const email = document.getElementById('email').value;
+  const senha = document.getElementById('senha').value;
+  const msg = document.getElementById('msg');
+
+  try {
+    const resp = await fetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, senha })
+    });
+    if (!resp.ok) {
+      const d = await resp.json();
+      msg.innerHTML = `<div class="erro">${d.erro || 'Erro ao entrar.'}</div>`;
+      return;
+    }
+    window.location.href = '/admin/dashboard';
+  } catch (e) {
+    msg.innerHTML = `<div class="erro">Erro de conexão.</div>`;
+  }
+};
+</script>
+</body>
+</html>

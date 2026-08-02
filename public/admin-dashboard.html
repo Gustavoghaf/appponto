@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Administrativo — Ponto</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="container">
+  <div class="topo-admin">
+    <h1 style="margin:0; font-size:22px;">📋 Painel de Ponto</h1>
+    <button id="btn-sair" class="btn-secundario">Sair</button>
+  </div>
+
+  <div class="card">
+    <div class="topo-admin">
+      <h3 class="mb0">Funcionários</h3>
+      <button id="btn-novo" class="btn-primario">+ Novo funcionário</button>
+    </div>
+    <div id="msg-funcionarios"></div>
+    <table>
+      <thead>
+        <tr><th>Nome</th><th>Cargo</th><th>Status</th><th>Ações</th></tr>
+      </thead>
+      <tbody id="tabela-funcionarios"></tbody>
+    </table>
+  </div>
+
+  <div class="card mt">
+    <h3>Frequência e Relatórios</h3>
+    <div class="flex" style="flex-wrap:wrap;">
+      <div style="flex:1; min-width:160px;">
+        <label>Funcionário</label>
+        <select id="filtro-funcionario"><option value="">Todos</option></select>
+      </div>
+      <div style="flex:1; min-width:140px;">
+        <label>De</label>
+        <input id="filtro-inicio" type="date">
+      </div>
+      <div style="flex:1; min-width:140px;">
+        <label>Até</label>
+        <input id="filtro-fim" type="date">
+      </div>
+    </div>
+    <div class="flex-fim">
+      <button id="btn-filtrar" class="btn-primario">Filtrar</button>
+      <button id="btn-registro-manual" class="btn-secundario">+ Corrigir / Inserir registro</button>
+      <button id="btn-exportar-csv" class="btn-secundario">⬇ Exportar CSV</button>
+      <button id="btn-exportar-pdf" class="btn-secundario">⬇ Exportar PDF</button>
+    </div>
+
+    <div id="resumo-horas" class="mt" style="display:none;">
+      <div class="flex" style="gap:16px;">
+        <div class="card" style="flex:1; text-align:center; padding:14px;">
+          <div class="texto-fraco">Horas hoje</div>
+          <div id="resumo-hoje" style="font-size:22px; font-weight:700; color:var(--azul);">-</div>
+        </div>
+        <div class="card" style="flex:1; text-align:center; padding:14px;">
+          <div class="texto-fraco">Horas na semana</div>
+          <div id="resumo-semana" style="font-size:22px; font-weight:700; color:var(--azul);">-</div>
+        </div>
+      </div>
+    </div>
+
+    <table class="mt">
+      <thead>
+        <tr><th>Funcionário</th><th>Tipo</th><th>Data</th><th>Hora</th><th>Foto</th><th>Origem</th><th>Ações</th></tr>
+      </thead>
+      <tbody id="tabela-registros"></tbody>
+    </table>
+  </div>
+
+  <div class="card mt">
+    <div class="topo-admin">
+      <h3 class="mb0">Férias</h3>
+      <button id="btn-nova-ferias" class="btn-primario">+ Registrar férias</button>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Funcionário</th><th>Início</th><th>Fim</th><th>Observação</th><th>Ações</th></tr>
+      </thead>
+      <tbody id="tabela-ferias"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal: registro manual / correção -->
+<div class="modal-fundo" id="modal-registro">
+  <div class="modal">
+    <h3 id="registro-titulo">Corrigir / inserir registro</h3>
+    <input type="hidden" id="r-id">
+    <label>Funcionário</label>
+    <select id="r-funcionario"></select>
+    <label>Tipo</label>
+    <select id="r-tipo">
+      <option value="entrada">Entrada</option>
+      <option value="saida">Saída</option>
+    </select>
+    <label>Data e hora</label>
+    <input id="r-datahora" type="datetime-local">
+    <div id="registro-msg"></div>
+    <div class="flex-fim mt">
+      <button id="btn-registro-cancelar" class="btn-secundario">Cancelar</button>
+      <button id="btn-registro-salvar" class="btn-primario">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: férias -->
+<div class="modal-fundo" id="modal-ferias">
+  <div class="modal">
+    <h3>Registrar férias</h3>
+    <label>Funcionário</label>
+    <select id="fe-funcionario"></select>
+    <label>Data de início</label>
+    <input id="fe-inicio" type="date">
+    <label>Data de fim</label>
+    <input id="fe-fim" type="date">
+    <label>Observação (opcional)</label>
+    <input id="fe-obs" type="text">
+    <div id="ferias-msg"></div>
+    <div class="flex-fim mt">
+      <button id="btn-ferias-cancelar" class="btn-secundario">Cancelar</button>
+      <button id="btn-ferias-salvar" class="btn-primario">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: novo/editar funcionário -->
+<div class="modal-fundo" id="modal-funcionario">
+  <div class="modal">
+    <h3 id="modal-titulo">Novo funcionário</h3>
+    <input type="hidden" id="f-id">
+    <label>Nome</label>
+    <input id="f-nome" type="text">
+    <label>Cargo (opcional)</label>
+    <input id="f-cargo" type="text">
+    <label>PIN (4 a 6 dígitos)</label>
+    <input id="f-pin" type="text" inputmode="numeric" maxlength="6" placeholder="Deixe em branco para não alterar">
+    <div id="modal-msg"></div>
+    <div class="flex-fim mt">
+      <button id="btn-modal-cancelar" class="btn-secundario">Cancelar</button>
+      <button id="btn-modal-salvar" class="btn-primario">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: QR code / link -->
+<div class="modal-fundo" id="modal-qr">
+  <div class="modal" style="text-align:center;">
+    <h3 id="qr-nome"></h3>
+    <img id="qr-img" style="width:220px; height:220px;">
+    <p class="texto-fraco" id="qr-link" style="word-break:break-all;"></p>
+    <div class="flex-fim" style="justify-content:center; flex-wrap:wrap;">
+      <button id="btn-copiar-link" class="btn-secundario">Copiar link</button>
+      <button id="btn-baixar-qr" class="btn-sucesso">⬇ Baixar QR code</button>
+    </div>
+    <button id="btn-fechar-qr" class="btn-primario mt" style="width:100%;">Fechar</button>
+  </div>
+</div>
+
+<script src="/js/admin.js"></script>
+</body>
+</html>
