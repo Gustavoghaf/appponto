@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const QRCode = require('qrcode');
-const dayjs = require('dayjs');
+const { dayjs, TZ } = require('../lib/tz');
 const isoWeek = require('dayjs/plugin/isoWeek');
 dayjs.extend(isoWeek);
 const PDFDocument = require('pdfkit');
@@ -159,8 +159,8 @@ router.delete('/registros/:id', async (req, res) => {
 
 // Resumo de horas trabalhadas hoje e na semana atual (para o painel)
 router.get('/resumo/:funcionario_id', async (req, res) => {
-  const inicioSemana = dayjs().startOf('week');
-  const inicioHoje = dayjs().startOf('day');
+  const inicioSemana = dayjs().tz(TZ).startOf('week');
+  const inicioHoje = dayjs().tz(TZ).startOf('day');
 
   const registrosSemana = await db.listarRegistros({
     funcionario_id: req.params.funcionario_id,
@@ -170,7 +170,7 @@ router.get('/resumo/:funcionario_id', async (req, res) => {
   function somarMinutos(registros) {
     const porDia = {};
     registros.forEach(r => {
-      const dia = dayjs(r.timestamp).format('YYYY-MM-DD');
+      const dia = dayjs(r.timestamp).tz(TZ).format('YYYY-MM-DD');
       porDia[dia] = porDia[dia] || {};
       porDia[dia][r.tipo] = r.timestamp;
     });
@@ -199,7 +199,7 @@ router.get('/relatorio.csv', async (req, res) => {
 
   const linhas = ['Funcionario,Tipo,Data,Hora,Foto'];
   registros.forEach(r => {
-    const dt = dayjs(r.timestamp);
+    const dt = dayjs(r.timestamp).tz(TZ);
     linhas.push([
       funcionarios[r.funcionario_id] || r.funcionario_id,
       r.tipo,
@@ -232,7 +232,7 @@ router.get('/relatorio.pdf', async (req, res) => {
   // Agrupa por funcionário -> por dia -> { entrada, saida }
   const porFuncionario = {};
   registros.forEach(r => {
-    const dia = dayjs(r.timestamp).format('YYYY-MM-DD');
+    const dia = dayjs(r.timestamp).tz(TZ).format('YYYY-MM-DD');
     porFuncionario[r.funcionario_id] = porFuncionario[r.funcionario_id] || {};
     porFuncionario[r.funcionario_id][dia] = porFuncionario[r.funcionario_id][dia] || {};
     porFuncionario[r.funcionario_id][dia][r.tipo] = r.timestamp;
@@ -243,8 +243,8 @@ router.get('/relatorio.pdf', async (req, res) => {
     const idsComFerias = funcionario_id ? [funcionario_id] : Object.keys(feriasPorFuncionario);
     idsComFerias.forEach(fid => {
       porFuncionario[fid] = porFuncionario[fid] || {};
-      let cursor = dayjs(inicio).startOf('day');
-      const limite = dayjs(fim).endOf('day');
+      let cursor = dayjs(inicio).tz(TZ).startOf('day');
+      const limite = dayjs(fim).tz(TZ).endOf('day');
       while (cursor.isBefore(limite) || cursor.isSame(limite, 'day')) {
         const diaStr = cursor.format('YYYY-MM-DD');
         if (estaDeFerias(fid, diaStr) && !porFuncionario[fid][diaStr]) {
@@ -256,7 +256,7 @@ router.get('/relatorio.pdf', async (req, res) => {
   }
 
   const nomeFiltro = funcionario_id ? (nomeDoFuncionario[funcionario_id] || 'Funcionário') : 'Todos os funcionários';
-  const periodoTexto = `${inicio ? dayjs(inicio).format('DD/MM/YYYY') : 'início'} a ${fim ? dayjs(fim).format('DD/MM/YYYY') : 'hoje'}`;
+  const periodoTexto = `${inicio ? dayjs(inicio).tz(TZ).format('DD/MM/YYYY') : 'início'} a ${fim ? dayjs(fim).tz(TZ).format('DD/MM/YYYY') : 'hoje'}`;
 
   const doc = new PDFDocument({ margin: 40, size: 'A4' });
   res.setHeader('Content-Type', 'application/pdf');
@@ -275,7 +275,7 @@ router.get('/relatorio.pdf', async (req, res) => {
   doc.fillColor(corFraco).fontSize(10).font('Helvetica')
     .text(`Funcionário: ${nomeFiltro}`)
     .text(`Período: ${periodoTexto}`)
-    .text(`Gerado em: ${dayjs().format('DD/MM/YYYY [às] HH:mm')}`);
+    .text(`Gerado em: ${dayjs().tz(TZ).format('DD/MM/YYYY [às] HH:mm')}`);
   doc.moveDown(0.5);
   doc.strokeColor(corLinha).lineWidth(1).moveTo(40, doc.y).lineTo(555, doc.y).stroke();
   doc.moveDown(0.8);
@@ -324,8 +324,8 @@ router.get('/relatorio.pdf', async (req, res) => {
         status = 'Férias';
         corStatus = corFerias;
       } else {
-        entrada = registroDia.entrada ? dayjs(registroDia.entrada) : null;
-        saida = registroDia.saida ? dayjs(registroDia.saida) : null;
+        entrada = registroDia.entrada ? dayjs(registroDia.entrada).tz(TZ) : null;
+        saida = registroDia.saida ? dayjs(registroDia.saida).tz(TZ) : null;
         if (entrada && saida) {
           const minutos = saida.diff(entrada, 'minute');
           totalMinutosFuncionario += minutos;

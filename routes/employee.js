@@ -2,9 +2,10 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const storage = require('../storage');
+const { dayjs, TZ } = require('../lib/tz');
 
 async function estaDeFeriasHoje(funcionario_id) {
-  const hoje = new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD'
+  const hoje = dayjs().tz(TZ).format('YYYY-MM-DD'); // 'YYYY-MM-DD'
   const ferias = await db.listarFerias({ funcionario_id });
   return ferias.some(f => hoje >= f.data_inicio && hoje <= f.data_fim);
 }
